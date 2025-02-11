@@ -28,5 +28,5 @@ public interface SerializationSchema extends Serializable {
      * @param element The incoming element to be serialized
      * @return The serialized element.
      */
-    byte[] serialize(SeaTunnelRow element);
+    byte[] serialize(SeaTunnelRow element) throws SerializationException;
 }

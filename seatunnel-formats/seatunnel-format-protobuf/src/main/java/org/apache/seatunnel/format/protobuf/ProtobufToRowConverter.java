@@ -18,11 +18,14 @@
 
 package org.apache.seatunnel.format.protobuf;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.table.type.ArrayType;
 import org.apache.seatunnel.api.table.type.MapType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
+import org.apache.seatunnel.format.protobuf.exception.ProtobufFormatErrorCode;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
@@ -41,10 +44,13 @@ public class ProtobufToRowConverter implements Serializable {
     private Descriptors.Descriptor descriptor = null;
     private String protoContent;
     private String messageName;
+    private final DeserializationErrorHandleWay errorHandleWay;
 
-    public ProtobufToRowConverter(String protoContent, String messageName) {
+    public ProtobufToRowConverter(
+            String protoContent, String messageName, DeserializationErrorHandleWay errorHandleWay) {
         this.protoContent = protoContent;
         this.messageName = messageName;
+        this.errorHandleWay = errorHandleWay;
     }
 
     public Descriptors.Descriptor getDescriptor() {
@@ -73,17 +79,28 @@ public class ProtobufToRowConverter implements Serializable {
         String[] fieldNames = rowType.getFieldNames();
         Object[] values = new Object[fieldNames.length];
         for (int i = 0; i < fieldNames.length; i++) {
-            Descriptors.FieldDescriptor fieldByName = descriptor.findFieldByName(fieldNames[i]);
-            if (fieldByName == null && descriptor.findNestedTypeByName(fieldNames[i]) == null) {
-                values[i] = null;
-            } else {
-                values[i] =
-                        convertField(
-                                descriptor,
-                                dynamicMessage,
-                                rowType.getFieldType(i),
-                                fieldByName == null ? null : dynamicMessage.getField(fieldByName),
-                                fieldNames[i]);
+            try {
+                Descriptors.FieldDescriptor fieldByName = descriptor.findFieldByName(fieldNames[i]);
+                if (fieldByName == null && descriptor.findNestedTypeByName(fieldNames[i]) == null) {
+                    values[i] = null;
+                } else {
+                    values[i] =
+                            convertField(
+                                    descriptor,
+                                    dynamicMessage,
+                                    rowType.getFieldType(i),
+                                    fieldByName == null
+                                            ? null
+                                            : dynamicMessage.getField(fieldByName),
+                                    fieldNames[i]);
+                }
+            } catch (Exception e) {
+                if (errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN) {
+                    values[i] = null;
+                } else {
+                    throw new DeserializationException(
+                            ProtobufFormatErrorCode.DESCRIPTOR_CONVERT_FAILED, e.getMessage());
+                }
             }
         }
         return new SeaTunnelRow(values);

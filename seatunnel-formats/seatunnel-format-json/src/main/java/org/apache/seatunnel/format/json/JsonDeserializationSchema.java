@@ -26,6 +26,8 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.NullNode;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -53,7 +55,9 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
     private final boolean failOnMissingField;
 
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
-    private final boolean ignoreParseErrors;
+    private final boolean skipRow;
+
+    private final boolean skipColumn;
 
     /** The row type of the produced {@link SeaTunnelRow}. */
     private final SeaTunnelRowType rowType;
@@ -77,9 +81,10 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
         }
         this.rowType = checkNotNull(rowType);
         this.failOnMissingField = failOnMissingField;
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.skipRow = ignoreParseErrors;
+        this.skipColumn = ignoreParseErrors;
         this.runtimeConverter =
-                new JsonToRowConverters(failOnMissingField, ignoreParseErrors)
+                new JsonToRowConverters(failOnMissingField, skipColumn)
                         .createRowConverter(checkNotNull(rowType));
 
         if (hasDecimalType(rowType)) {
@@ -98,9 +103,27 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
         this.catalogTable = catalogTable;
         this.rowType = checkNotNull(catalogTable.getSeaTunnelRowType());
         this.failOnMissingField = failOnMissingField;
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.skipRow = ignoreParseErrors;
+        this.skipColumn = ignoreParseErrors;
         this.runtimeConverter =
                 new JsonToRowConverters(failOnMissingField, ignoreParseErrors)
+                        .createRowConverter(checkNotNull(rowType));
+
+        if (hasDecimalType(rowType)) {
+            objectMapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+        }
+        objectMapper.configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true);
+    }
+
+    public JsonDeserializationSchema(
+            CatalogTable catalogTable, DeserializationErrorHandleWay errorHandleWay) {
+        this.catalogTable = catalogTable;
+        this.rowType = checkNotNull(catalogTable.getSeaTunnelRowType());
+        this.failOnMissingField = errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN;
+        this.skipRow = errorHandleWay == DeserializationErrorHandleWay.SKIP_ROW;
+        this.skipColumn = errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN;
+        this.runtimeConverter =
+                new JsonToRowConverters(failOnMissingField, skipColumn)
                         .createRowConverter(checkNotNull(rowType));
 
         if (hasDecimalType(rowType)) {
@@ -125,7 +148,7 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         if (message == null) {
             return null;
         }
@@ -170,7 +193,7 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
         try {
             return (SeaTunnelRow) runtimeConverter.convert(jsonNode, null);
         } catch (RuntimeException e) {
-            if (ignoreParseErrors) {
+            if (skipRow) {
                 return null;
             }
             throw CommonError.jsonOperationError(FORMAT, jsonNode.toString(), e);
@@ -189,7 +212,7 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
         try {
             return objectMapper.readTree(message);
         } catch (IOException | RuntimeException e) {
-            if (ignoreParseErrors) {
+            if (skipRow) {
                 return NullNode.getInstance();
             }
             throw CommonError.jsonOperationError(FORMAT, new String(message), e);
@@ -200,7 +223,7 @@ public class JsonDeserializationSchema implements DeserializationSchema<SeaTunne
         try {
             return objectMapper.readTree(message);
         } catch (JsonProcessingException | RuntimeException e) {
-            if (ignoreParseErrors) {
+            if (skipRow) {
                 return NullNode.getInstance();
             }
             throw CommonError.jsonOperationError(FORMAT, new String(message), e);

@@ -17,13 +17,13 @@
 
 package org.apache.seatunnel.connectors.seatunnel.kafka.source;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 import org.apache.seatunnel.api.table.schema.event.SchemaChangeEvent;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.connectors.seatunnel.common.source.reader.RecordEmitter;
-import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormatErrorHandleWay;
 import org.apache.seatunnel.format.compatible.kafka.connect.json.CompatibleKafkaConnectDeserializationSchema;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -40,11 +40,11 @@ public class KafkaRecordEmitter
     private static final Logger logger = LoggerFactory.getLogger(KafkaRecordEmitter.class);
     private final Map<TablePath, ConsumerMetadata> mapMetadata;
     private final OutputCollector<SeaTunnelRow> outputCollector;
-    private final MessageFormatErrorHandleWay messageFormatErrorHandleWay;
+    private final DeserializationErrorHandleWay messageFormatErrorHandleWay;
 
     public KafkaRecordEmitter(
             Map<TablePath, ConsumerMetadata> mapMetadata,
-            MessageFormatErrorHandleWay messageFormatErrorHandleWay) {
+            DeserializationErrorHandleWay messageFormatErrorHandleWay) {
         this.mapMetadata = mapMetadata;
         this.messageFormatErrorHandleWay = messageFormatErrorHandleWay;
         this.outputCollector = new OutputCollector<>();
@@ -68,7 +68,7 @@ public class KafkaRecordEmitter
                 deserializationSchema.deserialize(consumerRecord.value(), outputCollector);
             }
         } catch (Exception e) {
-            if (this.messageFormatErrorHandleWay == MessageFormatErrorHandleWay.SKIP) {
+            if (this.messageFormatErrorHandleWay == DeserializationErrorHandleWay.SKIP) {
                 logger.warn(
                         "Deserialize message failed, skip this message, message: {}",
                         new String(consumerRecord.value()));

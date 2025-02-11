@@ -34,12 +34,12 @@ import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
-public class CsvLineSplitor implements TextLineSplitor, Serializable {
+public class CsvLineSplitter implements TextLineSplitter, Serializable {
     private Map<Character, CSVFormat> splitorFormatMap = new HashMap<>();
 
     @Override
-    public String[] spliteLine(String line, String splitor) {
-        Character splitChar = splitor.charAt(0);
+    public String[] splitLine(String line, String separator) {
+        Character splitChar = separator.charAt(0);
         if (Objects.isNull(splitorFormatMap.get(splitChar))) {
             splitorFormatMap.put(splitChar, CSVFormat.DEFAULT.withDelimiter(splitChar));
         }

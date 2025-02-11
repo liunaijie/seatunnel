@@ -21,6 +21,7 @@ package org.apache.seatunnel.format.json;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.apache.seatunnel.api.serialization.SerializationException;
 import org.apache.seatunnel.api.serialization.SerializationSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -67,7 +68,7 @@ public class JsonSerializationSchema implements SerializationSchema {
     }
 
     @Override
-    public byte[] serialize(SeaTunnelRow row) {
+    public byte[] serialize(SeaTunnelRow row) throws SerializationException {
         if (node == null) {
             node = mapper.createObjectNode();
         }

@@ -18,6 +18,7 @@
 
 package org.apache.seatunnel.format.compatible.debezium.json;
 
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
@@ -26,8 +27,6 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 
 import org.apache.kafka.connect.source.SourceRecord;
 
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 
 public class CompatibleDebeziumJsonDeserializationSchema
@@ -51,8 +50,8 @@ public class CompatibleDebeziumJsonDeserializationSchema
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
-        throw new UnsupportedEncodingException();
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
+        throw new UnsupportedOperationException();
     }
 
     public SeaTunnelRow deserialize(SourceRecord record)

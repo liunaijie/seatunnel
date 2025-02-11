@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.common.PrepareFailException;
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Boundedness;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
@@ -315,7 +316,8 @@ public class PulsarSource
                     deserializationSchema =
                             new PulsarCanalDecorator(
                                     CanalJsonDeserializationSchema.builder(catalogTable)
-                                            .setIgnoreParseErrors(true)
+                                            .setErrorHandleWay(
+                                                    DeserializationErrorHandleWay.SKIP_ROW)
                                             .build());
                     break;
                 default:

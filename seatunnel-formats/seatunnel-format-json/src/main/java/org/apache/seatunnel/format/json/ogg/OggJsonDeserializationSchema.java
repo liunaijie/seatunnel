@@ -21,6 +21,8 @@ package org.apache.seatunnel.format.json.ogg;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -35,7 +37,6 @@ import org.apache.seatunnel.format.json.JsonDeserializationSchema;
 
 import lombok.NonNull;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -74,7 +75,7 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
     /** Field number. */
     private final int fieldCount;
 
-    private final boolean ignoreParseErrors;
+    private final DeserializationErrorHandleWay errorHandleWay;
 
     /** Pattern of the specific database. */
     private final Pattern databasePattern;
@@ -92,22 +93,21 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
             @NonNull CatalogTable catalogTable,
             String database,
             String table,
-            boolean ignoreParseErrors) {
+            DeserializationErrorHandleWay errorHandleWay) {
         this.catalogTable = catalogTable;
         this.seaTunnelRowType = catalogTable.getSeaTunnelRowType();
-        this.jsonDeserializer =
-                new JsonDeserializationSchema(catalogTable, false, ignoreParseErrors);
+        this.jsonDeserializer = new JsonDeserializationSchema(catalogTable, errorHandleWay);
         this.database = database;
         this.table = table;
         this.fieldNames = seaTunnelRowType.getFieldNames();
         this.fieldCount = seaTunnelRowType.getTotalFields();
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.errorHandleWay = errorHandleWay;
         this.databasePattern = database == null ? null : Pattern.compile(database);
         this.tablePattern = table == null ? null : Pattern.compile(table);
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         throw new UnsupportedOperationException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<SeaTunnelRow>) instead.");
     }
@@ -129,7 +129,7 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
         try {
             jsonNode = convertBytes(message);
         } catch (RuntimeException e) {
-            if (!ignoreParseErrors) {
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
                 throw e;
             } else {
                 return;
@@ -210,7 +210,7 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
             }
 
         } catch (RuntimeException e) {
-            if (!ignoreParseErrors) {
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
                 throw CommonError.jsonOperationError(FORMAT, jsonNode.toString(), e);
             }
         }
@@ -251,7 +251,7 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
 
     public static class Builder {
 
-        private boolean ignoreParseErrors = false;
+        private DeserializationErrorHandleWay errorHandleWay;
 
         private String database = null;
 
@@ -273,14 +273,13 @@ public class OggJsonDeserializationSchema implements DeserializationSchema<SeaTu
             return this;
         }
 
-        public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
-            this.ignoreParseErrors = ignoreParseErrors;
+        public Builder setErrorHandleWay(DeserializationErrorHandleWay errorHandleWay) {
+            this.errorHandleWay = errorHandleWay;
             return this;
         }
 
         public OggJsonDeserializationSchema build() {
-            return new OggJsonDeserializationSchema(
-                    catalogTable, database, table, ignoreParseErrors);
+            return new OggJsonDeserializationSchema(catalogTable, database, table, errorHandleWay);
         }
     }
 }

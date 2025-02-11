@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.core.type.TypeReference;
 
 import org.apache.seatunnel.api.configuration.Option;
 import org.apache.seatunnel.api.configuration.Options;
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.table.catalog.schema.TableSchemaOptions;
 
 import java.util.Map;
@@ -103,12 +104,14 @@ public class KafkaSourceOptions extends KafkaBaseOptions {
                     .defaultValue(10000L)
                     .withDescription("The interval for poll message");
 
-    public static final Option<MessageFormatErrorHandleWay> MESSAGE_FORMAT_ERROR_HANDLE_WAY_OPTION =
-            Options.key("format_error_handle_way")
-                    .enumType(MessageFormatErrorHandleWay.class)
-                    .defaultValue(MessageFormatErrorHandleWay.FAIL)
-                    .withDescription(
-                            "The processing method of data format error. The default value is fail, and the optional value is (fail, skip). "
-                                    + "When fail is selected, data format error will block and an exception will be thrown. "
-                                    + "When skip is selected, data format error will skip this line data.");
+    public static final Option<DeserializationErrorHandleWay>
+            MESSAGE_FORMAT_ERROR_HANDLE_WAY_OPTION =
+                    Options.key("format_error_handle_way")
+                            .enumType(DeserializationErrorHandleWay.class)
+                            .defaultValue(DeserializationErrorHandleWay.FAIL)
+                            .withDescription(
+                                    "The processing method of data format error. The default value is fail, and the optional value is (fail, skip_row, skip_column). "
+                                            + "When fail is selected, data format error will block and an exception will be thrown. \n"
+                                            + "When skip_row is selected, data format error will skip this line data. \n"
+                                            + "When skip_column is selected, data format error will only skip this column data.");
 }

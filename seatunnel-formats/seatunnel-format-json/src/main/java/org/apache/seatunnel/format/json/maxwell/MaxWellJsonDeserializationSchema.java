@@ -21,6 +21,8 @@ package org.apache.seatunnel.format.json.maxwell;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -32,7 +34,6 @@ import org.apache.seatunnel.common.exception.CommonErrorCode;
 import org.apache.seatunnel.format.json.JsonDeserializationSchema;
 import org.apache.seatunnel.format.json.exception.SeaTunnelJsonFormatException;
 
-import java.io.IOException;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
@@ -67,7 +68,7 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
     /** Number of fields. */
     private final int fieldCount;
 
-    private final boolean ignoreParseErrors;
+    private final DeserializationErrorHandleWay errorHandleWay;
 
     /** Pattern of the specific database. */
     private final Pattern databasePattern;
@@ -81,22 +82,24 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
     private final SeaTunnelRowType seaTunnelRowType;
 
     public MaxWellJsonDeserializationSchema(
-            CatalogTable catalogTable, String database, String table, boolean ignoreParseErrors) {
+            CatalogTable catalogTable,
+            String database,
+            String table,
+            DeserializationErrorHandleWay errorHandleWay) {
         this.catalogTable = catalogTable;
         this.seaTunnelRowType = catalogTable.getSeaTunnelRowType();
-        this.jsonDeserializer =
-                new JsonDeserializationSchema(false, ignoreParseErrors, seaTunnelRowType);
+        this.jsonDeserializer = new JsonDeserializationSchema(catalogTable, errorHandleWay);
         this.database = database;
         this.table = table;
         this.fieldNames = seaTunnelRowType.getFieldNames();
         this.fieldCount = seaTunnelRowType.getTotalFields();
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.errorHandleWay = errorHandleWay;
         this.databasePattern = database == null ? null : Pattern.compile(database);
         this.tablePattern = table == null ? null : Pattern.compile(table);
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         throw new UnsupportedOperationException();
     }
 
@@ -149,7 +152,7 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
             rowDelete.setRowKind(RowKind.DELETE);
             out.collect(rowDelete);
         } else {
-            if (!ignoreParseErrors) {
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
                 throw new SeaTunnelJsonFormatException(
                         CommonErrorCode.UNSUPPORTED_DATA_TYPE,
                         format(
@@ -163,13 +166,13 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
         try {
             return jsonDeserializer.deserializeToJsonNode(message);
         } catch (Exception t) {
-            if (ignoreParseErrors) {
-                return null;
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
+                throw new SeaTunnelJsonFormatException(
+                        CommonErrorCode.CONVERT_TO_CONNECTOR_TYPE_ERROR_SIMPLE,
+                        String.format("Failed to deserialize JSON '%s'.", new String(message)),
+                        t);
             }
-            throw new SeaTunnelJsonFormatException(
-                    CommonErrorCode.CONVERT_TO_CONNECTOR_TYPE_ERROR_SIMPLE,
-                    String.format("Failed to deserialize JSON '%s'.", new String(message)),
-                    t);
+            return null;
         }
     }
 
@@ -193,7 +196,7 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
 
     public static class Builder {
 
-        private boolean ignoreParseErrors = false;
+        private DeserializationErrorHandleWay errorHandleWay;
 
         private String database = null;
 
@@ -215,14 +218,14 @@ public class MaxWellJsonDeserializationSchema implements DeserializationSchema<S
             return this;
         }
 
-        public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
-            this.ignoreParseErrors = ignoreParseErrors;
+        public Builder setErrorHandleWay(DeserializationErrorHandleWay errorHandleWay) {
+            this.errorHandleWay = errorHandleWay;
             return this;
         }
 
         public MaxWellJsonDeserializationSchema build() {
             return new MaxWellJsonDeserializationSchema(
-                    catalogTable, database, table, ignoreParseErrors);
+                    catalogTable, database, table, errorHandleWay);
         }
     }
 }

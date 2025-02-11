@@ -18,6 +18,7 @@
 
 package org.apache.seatunnel.format.json.debezium;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
@@ -98,7 +99,8 @@ public class DebeziumJsonSerDeSchemaTest {
     @Test
     void testNullRowMessages() throws Exception {
         DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, false);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.FAIL);
         SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(null, collector);
@@ -114,7 +116,8 @@ public class DebeziumJsonSerDeSchemaTest {
     @Test
     public void testDeserializeNoJson() throws Exception {
         final DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, false);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.FAIL);
         final SimpleCollector collector = new SimpleCollector();
 
         String noJsonMsg = "{]";
@@ -132,7 +135,8 @@ public class DebeziumJsonSerDeSchemaTest {
     @Test
     public void testDeserializeEmptyJson() throws Exception {
         final DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, false);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.FAIL);
         final SimpleCollector collector = new SimpleCollector();
         String emptyMsg = "{}";
         SeaTunnelRuntimeException expected = CommonError.jsonOperationError(FORMAT, emptyMsg);
@@ -148,7 +152,8 @@ public class DebeziumJsonSerDeSchemaTest {
     @Test
     public void testDeserializeNoDataJson() throws Exception {
         final DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, false);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.FAIL);
         final SimpleCollector collector = new SimpleCollector();
         String noDataMsg = "{\"op\":\"u\"}";
         SeaTunnelRuntimeException expected = CommonError.jsonOperationError(FORMAT, noDataMsg);
@@ -174,7 +179,8 @@ public class DebeziumJsonSerDeSchemaTest {
     @Test
     public void testDeserializeUnknownOperationTypeJson() throws Exception {
         final DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, false);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.FAIL);
         final SimpleCollector collector = new SimpleCollector();
         String unknownType = "XX";
         String unknownOperationMsg =
@@ -324,7 +330,9 @@ public class DebeziumJsonSerDeSchemaTest {
                         });
         DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
-                        CatalogTableUtil.getCatalogTable("defaule", rowType), false, false);
+                        CatalogTableUtil.getCatalogTable("defaule", rowType),
+                        DeserializationErrorHandleWay.FAIL,
+                        false);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -422,7 +430,9 @@ public class DebeziumJsonSerDeSchemaTest {
                         });
         DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
-                        CatalogTableUtil.getCatalogTable("defaule", rowType), false, false);
+                        CatalogTableUtil.getCatalogTable("defaule", rowType),
+                        DeserializationErrorHandleWay.FAIL,
+                        false);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -464,7 +474,8 @@ public class DebeziumJsonSerDeSchemaTest {
         List<String> lines = readLines("debezium-oracle.txt");
 
         DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(oracleTable, false, false);
+                new DebeziumJsonDeserializationSchema(
+                        oracleTable, DeserializationErrorHandleWay.FAIL, false);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -538,7 +549,9 @@ public class DebeziumJsonSerDeSchemaTest {
                         });
         DebeziumJsonDeserializationSchema deserializationSchema =
                 new DebeziumJsonDeserializationSchema(
-                        CatalogTableUtil.getCatalogTable("defaule", rowType), false, false);
+                        CatalogTableUtil.getCatalogTable("defaule", rowType),
+                        DeserializationErrorHandleWay.FAIL,
+                        false);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -572,7 +585,8 @@ public class DebeziumJsonSerDeSchemaTest {
             throws Exception {
         List<String> lines = readLines(resourceFile);
         DebeziumJsonDeserializationSchema deserializationSchema =
-                new DebeziumJsonDeserializationSchema(catalogTables, true, schemaInclude);
+                new DebeziumJsonDeserializationSchema(
+                        catalogTables, DeserializationErrorHandleWay.SKIP_COLUMN, schemaInclude);
 
         SimpleCollector collector = new SimpleCollector();
 

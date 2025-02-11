@@ -18,6 +18,8 @@
 
 package org.apache.seatunnel.format.protobuf;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
@@ -27,9 +29,11 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.InvalidProtocolBufferException;
 
-import java.io.IOException;
 import java.util.Optional;
+
+import static org.apache.seatunnel.format.protobuf.exception.ProtobufFormatErrorCode.DESERIALIZATION_FAILED;
 
 public class ProtobufDeserializationSchema implements DeserializationSchema<SeaTunnelRow> {
     private static final long serialVersionUID = -7907358485475741366L;
@@ -37,21 +41,29 @@ public class ProtobufDeserializationSchema implements DeserializationSchema<SeaT
     private final SeaTunnelRowType rowType;
     private final ProtobufToRowConverter converter;
     private final CatalogTable catalogTable;
+    private final DeserializationErrorHandleWay errorHandleWay;
     private final String protoContent;
     private final String messageName;
 
-    public ProtobufDeserializationSchema(CatalogTable catalogTable) {
+    public ProtobufDeserializationSchema(
+            CatalogTable catalogTable, DeserializationErrorHandleWay errorHandleWay) {
         this.catalogTable = catalogTable;
         this.rowType = catalogTable.getSeaTunnelRowType();
         this.messageName = catalogTable.getOptions().get("protobuf_message_name");
         this.protoContent = catalogTable.getOptions().get("protobuf_schema");
-        this.converter = new ProtobufToRowConverter(protoContent, messageName);
+        this.errorHandleWay = errorHandleWay;
+        this.converter = new ProtobufToRowConverter(protoContent, messageName, errorHandleWay);
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         Descriptors.Descriptor descriptor = this.converter.getDescriptor();
-        DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, message);
+        DynamicMessage dynamicMessage = null;
+        try {
+            dynamicMessage = DynamicMessage.parseFrom(descriptor, message);
+        } catch (InvalidProtocolBufferException e) {
+            throw new DeserializationException(DESERIALIZATION_FAILED, e.getMessage());
+        }
         SeaTunnelRow seaTunnelRow = this.converter.converter(descriptor, dynamicMessage, rowType);
         Optional<TablePath> tablePath =
                 Optional.ofNullable(catalogTable).map(CatalogTable::getTablePath);

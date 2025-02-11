@@ -22,6 +22,8 @@ import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -30,13 +32,11 @@ import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.common.exception.CommonError;
-import org.apache.seatunnel.common.exception.SeaTunnelRuntimeException;
 import org.apache.seatunnel.format.json.JsonDeserializationSchema;
+import org.apache.seatunnel.format.json.exception.JsonErrorCode;
 
 import lombok.NonNull;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -44,8 +44,6 @@ import static java.lang.String.format;
 
 public class CanalJsonDeserializationSchema implements DeserializationSchema<SeaTunnelRow> {
     private static final long serialVersionUID = 1L;
-
-    private static final String FORMAT = "Canal";
 
     private static final String FIELD_OLD = "old";
 
@@ -79,7 +77,7 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
     /** Number of fields. */
     private final int fieldCount;
 
-    private final boolean ignoreParseErrors;
+    private final DeserializationErrorHandleWay errorHandleWay;
 
     /** Pattern of the specific database. */
     private final Pattern databasePattern;
@@ -96,22 +94,21 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
             @NonNull CatalogTable catalogTable,
             String database,
             String table,
-            boolean ignoreParseErrors) {
+            DeserializationErrorHandleWay errorHandleWay) {
         this.catalogTable = catalogTable;
         this.seaTunnelRowType = catalogTable.getSeaTunnelRowType();
-        this.jsonDeserializer =
-                new JsonDeserializationSchema(catalogTable, false, ignoreParseErrors);
+        this.jsonDeserializer = new JsonDeserializationSchema(catalogTable, errorHandleWay);
         this.database = database;
         this.table = table;
         this.fieldNames = seaTunnelRowType.getFieldNames();
         this.fieldCount = seaTunnelRowType.getTotalFields();
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.errorHandleWay = errorHandleWay;
         this.databasePattern = database == null ? null : Pattern.compile(database);
         this.tablePattern = table == null ? null : Pattern.compile(table);
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         throw new UnsupportedOperationException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<SeaTunnelRow>) instead.");
     }
@@ -121,7 +118,8 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
         return this.seaTunnelRowType;
     }
 
-    public void deserialize(ObjectNode jsonNode, Collector<SeaTunnelRow> out) throws IOException {
+    public void deserialize(ObjectNode jsonNode, Collector<SeaTunnelRow> out)
+            throws DeserializationException {
         TablePath tablePath =
                 Optional.ofNullable(catalogTable).map(CatalogTable::getTablePath).orElse(null);
 
@@ -197,13 +195,14 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
                             String.format("Unknown operation type '%s'.", op));
             }
         } catch (RuntimeException e) {
-            if (!ignoreParseErrors) {
-                throw CommonError.jsonOperationError(FORMAT, jsonNode.toString(), e);
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
+                throw new DeserializationException(
+                        JsonErrorCode.CANAL_DESERIALIZE_ERROR, e.getMessage());
             }
         }
     }
 
-    private ObjectNode convertBytes(byte[] message) throws SeaTunnelRuntimeException {
+    private ObjectNode convertBytes(byte[] message) throws DeserializationException {
         if (message == null || message.length == 0) {
             return null;
         }
@@ -211,15 +210,17 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
         try {
             return (ObjectNode) jsonDeserializer.deserializeToJsonNode(message);
         } catch (Throwable t) {
-            if (!ignoreParseErrors) {
-                throw CommonError.jsonOperationError(FORMAT, new String(message), t);
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
+                throw new DeserializationException(
+                        JsonErrorCode.CANAL_DESERIALIZE_ERROR, t.getMessage());
             }
             return null;
         }
     }
 
     @Override
-    public void deserialize(byte[] message, Collector<SeaTunnelRow> out) throws IOException {
+    public void deserialize(byte[] message, Collector<SeaTunnelRow> out)
+            throws DeserializationException {
         ObjectNode jsonNodes = convertBytes(message);
         if (jsonNodes != null) {
             deserialize(convertBytes(message), out);
@@ -246,7 +247,7 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
 
     public static class Builder {
 
-        private boolean ignoreParseErrors = false;
+        private DeserializationErrorHandleWay errorHandleWay;
 
         private String database = null;
 
@@ -268,8 +269,8 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
             return this;
         }
 
-        public Builder setIgnoreParseErrors(boolean ignoreParseErrors) {
-            this.ignoreParseErrors = ignoreParseErrors;
+        public Builder setErrorHandleWay(DeserializationErrorHandleWay errorHandleWay) {
+            this.errorHandleWay = errorHandleWay;
             return this;
         }
 
@@ -280,7 +281,7 @@ public class CanalJsonDeserializationSchema implements DeserializationSchema<Sea
 
         public CanalJsonDeserializationSchema build() {
             return new CanalJsonDeserializationSchema(
-                    catalogTable, database, table, ignoreParseErrors);
+                    catalogTable, database, table, errorHandleWay);
         }
     }
 }

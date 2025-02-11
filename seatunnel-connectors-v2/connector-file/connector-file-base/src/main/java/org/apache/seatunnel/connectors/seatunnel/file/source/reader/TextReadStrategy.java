@@ -19,6 +19,7 @@ package org.apache.seatunnel.connectors.seatunnel.file.source.reader;
 
 import org.apache.seatunnel.api.common.SeaTunnelAPIErrorCode;
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -36,8 +37,8 @@ import org.apache.seatunnel.connectors.seatunnel.file.exception.FileConnectorErr
 import org.apache.seatunnel.connectors.seatunnel.file.exception.FileConnectorException;
 import org.apache.seatunnel.format.text.TextDeserializationSchema;
 import org.apache.seatunnel.format.text.constant.TextFormatConstant;
-import org.apache.seatunnel.format.text.splitor.DefaultTextLineSplitor;
-import org.apache.seatunnel.format.text.splitor.TextLineSplitor;
+import org.apache.seatunnel.format.text.splitor.DefaultTextLineSplitter;
+import org.apache.seatunnel.format.text.splitor.TextLineSplitter;
 
 import io.airlift.compress.lzo.LzopCodec;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +60,7 @@ public class TextReadStrategy extends AbstractReadStrategy {
             BaseSourceConfigOptions.DATETIME_FORMAT.defaultValue();
     private TimeUtils.Formatter timeFormat = BaseSourceConfigOptions.TIME_FORMAT.defaultValue();
     private CompressFormat compressFormat = BaseSourceConfigOptions.COMPRESS_CODEC.defaultValue();
-    private TextLineSplitor textLineSplitor;
+    private TextLineSplitter textLineSplitter;
     private int[] indexes;
     private String encoding = BaseSourceConfigOptions.ENCODING.defaultValue();
 
@@ -130,7 +131,7 @@ public class TextReadStrategy extends AbstractReadStrategy {
                                     }
                                     seaTunnelRow.setTableId(tableId);
                                     output.collect(seaTunnelRow);
-                                } catch (IOException e) {
+                                } catch (DeserializationException e) {
                                     String errorMsg =
                                             String.format(
                                                     "Deserialize this data [%s] failed, please check the origin data",
@@ -160,7 +161,7 @@ public class TextReadStrategy extends AbstractReadStrategy {
         TextDeserializationSchema.Builder builder =
                 TextDeserializationSchema.builder()
                         .delimiter(TextFormatConstant.PLACEHOLDER)
-                        .textLineSplitor(textLineSplitor)
+                        .textLineSplitter(textLineSplitter)
                         .nullFormat(
                                 readonlyConfig
                                         .getOptional(BaseSourceConfigOptions.NULL_FORMAT)
@@ -191,7 +192,7 @@ public class TextReadStrategy extends AbstractReadStrategy {
         TextDeserializationSchema.Builder builder =
                 TextDeserializationSchema.builder()
                         .delimiter(fieldDelimiter)
-                        .textLineSplitor(textLineSplitor)
+                        .textLineSplitter(textLineSplitter)
                         .nullFormat(
                                 readonlyConfig
                                         .getOptional(BaseSourceConfigOptions.NULL_FORMAT)
@@ -243,6 +244,6 @@ public class TextReadStrategy extends AbstractReadStrategy {
                     pluginConfig.getString(BaseSourceConfigOptions.COMPRESS_CODEC.key());
             compressFormat = CompressFormat.valueOf(compressCodec.toUpperCase());
         }
-        textLineSplitor = new DefaultTextLineSplitor();
+        textLineSplitter = new DefaultTextLineSplitter();
     }
 }

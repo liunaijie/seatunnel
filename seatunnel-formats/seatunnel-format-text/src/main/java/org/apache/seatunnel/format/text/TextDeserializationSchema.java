@@ -17,6 +17,8 @@
 
 package org.apache.seatunnel.format.text;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
@@ -33,14 +35,13 @@ import org.apache.seatunnel.common.utils.EncodingUtils;
 import org.apache.seatunnel.common.utils.TimeUtils;
 import org.apache.seatunnel.format.text.constant.TextFormatConstant;
 import org.apache.seatunnel.format.text.exception.SeaTunnelTextFormatException;
-import org.apache.seatunnel.format.text.splitor.DefaultTextLineSplitor;
-import org.apache.seatunnel.format.text.splitor.TextLineSplitor;
+import org.apache.seatunnel.format.text.splitor.DefaultTextLineSplitter;
+import org.apache.seatunnel.format.text.splitor.TextLineSplitter;
 
 import org.apache.commons.lang3.StringUtils;
 
 import lombok.NonNull;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -59,10 +60,11 @@ import java.util.Optional;
 
 public class TextDeserializationSchema implements DeserializationSchema<SeaTunnelRow> {
     private final SeaTunnelRowType seaTunnelRowType;
+    private final DeserializationErrorHandleWay errorHandleWay;
     private final String[] separators;
     private final String encoding;
     private final String nullFormat;
-    private final TextLineSplitor splitor;
+    private final TextLineSplitter splitter;
     private final CatalogTable catalogTable;
 
     @SuppressWarnings("MagicNumber")
@@ -76,16 +78,18 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
 
     private TextDeserializationSchema(
             @NonNull SeaTunnelRowType seaTunnelRowType,
+            DeserializationErrorHandleWay errorHandleWay,
             String[] separators,
             String encoding,
             String nullFormat,
-            TextLineSplitor splitor,
+            TextLineSplitter splitter,
             CatalogTable catalogTable) {
         this.seaTunnelRowType = seaTunnelRowType;
+        this.errorHandleWay = errorHandleWay;
         this.separators = separators;
         this.encoding = encoding;
         this.nullFormat = nullFormat;
-        this.splitor = splitor;
+        this.splitter = splitter;
         this.catalogTable = catalogTable;
     }
 
@@ -96,6 +100,7 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
     public static class Builder {
         private SeaTunnelRowType seaTunnelRowType;
         private CatalogTable catalogTable;
+        private DeserializationErrorHandleWay errorHandleWay;
         private String[] separators = TextFormatConstant.SEPARATOR.clone();
         private DateUtils.Formatter dateFormatter = DateUtils.Formatter.YYYY_MM_DD;
         private DateTimeUtils.Formatter dateTimeFormatter =
@@ -103,7 +108,7 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
         private TimeUtils.Formatter timeFormatter = TimeUtils.Formatter.HH_MM_SS;
         private String encoding = StandardCharsets.UTF_8.name();
         private String nullFormat;
-        private TextLineSplitor textLineSplitor = new DefaultTextLineSplitor();
+        private TextLineSplitter textLineSplitter = new DefaultTextLineSplitter();
 
         private Builder() {}
 
@@ -119,6 +124,11 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
 
         public Builder delimiter(String delimiter) {
             this.separators[0] = delimiter;
+            return this;
+        }
+
+        public Builder setErrorHandleWay(DeserializationErrorHandleWay errorHandleWay) {
+            this.errorHandleWay = errorHandleWay;
             return this;
         }
 
@@ -152,24 +162,25 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
             return this;
         }
 
-        public Builder textLineSplitor(TextLineSplitor splitor) {
-            this.textLineSplitor = splitor;
+        public Builder textLineSplitter(TextLineSplitter splitter) {
+            this.textLineSplitter = splitter;
             return this;
         }
 
         public TextDeserializationSchema build() {
             return new TextDeserializationSchema(
                     seaTunnelRowType,
+                    errorHandleWay,
                     separators,
                     encoding,
                     nullFormat,
-                    textLineSplitor,
+                    textLineSplitter,
                     catalogTable);
         }
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         if (message == null || message.length == 0) {
             return null;
         }
@@ -184,12 +195,21 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
             if (StringUtils.equals(fieldValue, nullFormat)) {
                 continue;
             }
-            objects[i] =
-                    convert(
-                            fieldValue,
-                            seaTunnelRowType.getFieldType(i),
-                            0,
-                            seaTunnelRowType.getFieldNames()[i]);
+            try {
+                objects[i] =
+                        convert(
+                                fieldValue,
+                                seaTunnelRowType.getFieldType(i),
+                                0,
+                                seaTunnelRowType.getFieldNames()[i]);
+            } catch (RuntimeException e) {
+                if (errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN) {
+                    objects[i] = null;
+                } else {
+                    // todo add code and message
+                    throw new DeserializationException(null, null);
+                }
+            }
         }
         SeaTunnelRow seaTunnelRow = new SeaTunnelRow(objects);
         Optional<TablePath> tablePath =
@@ -207,7 +227,7 @@ public class TextDeserializationSchema implements DeserializationSchema<SeaTunne
 
     private Map<Integer, String> splitLineBySeaTunnelRowType(
             String line, SeaTunnelRowType seaTunnelRowType, int level) {
-        String[] splits = splitor.spliteLine(line, separators[level]);
+        String[] splits = splitter.splitLine(line, separators[level]);
         LinkedHashMap<Integer, String> splitsMap = new LinkedHashMap<>();
         SeaTunnelDataType<?>[] fieldTypes = seaTunnelRowType.getFieldTypes();
         for (int i = 0; i < splits.length; i++) {

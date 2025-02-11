@@ -18,6 +18,7 @@
 
 package org.apache.seatunnel.format.json.maxwell;
 
+import org.apache.seatunnel.api.serialization.SerializationException;
 import org.apache.seatunnel.api.serialization.SerializationSchema;
 import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
@@ -49,7 +50,7 @@ public class MaxWellJsonSerializationSchema implements SerializationSchema {
     }
 
     @Override
-    public byte[] serialize(SeaTunnelRow row) {
+    public byte[] serialize(SeaTunnelRow row) throws SerializationException {
         try {
             String opType = rowKind2String(row.getRowKind());
             reuse.setField(0, row);

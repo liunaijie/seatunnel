@@ -18,6 +18,7 @@
 
 package org.apache.seatunnel.format.json.maxwell;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
@@ -159,7 +160,7 @@ public class MaxWellJsonSerDeSchemaTest {
         return MaxWellJsonDeserializationSchema.builder(catalogTables)
                 .setDatabase(database)
                 .setTable(table)
-                .setIgnoreParseErrors(false)
+                .setErrorHandleWay(DeserializationErrorHandleWay.FAIL)
                 .build();
     }
 

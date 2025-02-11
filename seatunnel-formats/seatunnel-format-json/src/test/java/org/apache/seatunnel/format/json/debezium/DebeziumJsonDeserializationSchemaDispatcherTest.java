@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.format.json.debezium;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
 
@@ -97,10 +98,12 @@ public class DebeziumJsonDeserializationSchemaDispatcherTest {
             TablePath tablePath, CatalogTable catalogTable, String dataFile) throws IOException {
         Map<TablePath, DebeziumJsonDeserializationSchema> tableDeserializationMap = new HashMap<>();
         tableDeserializationMap.put(
-                tablePath, new DebeziumJsonDeserializationSchema(catalogTable, false));
+                tablePath,
+                new DebeziumJsonDeserializationSchema(
+                        catalogTable, DeserializationErrorHandleWay.FAIL));
         DebeziumJsonDeserializationSchemaDispatcher dispatcher =
                 new DebeziumJsonDeserializationSchemaDispatcher(
-                        tableDeserializationMap, false, false);
+                        tableDeserializationMap, DeserializationErrorHandleWay.FAIL, false);
 
         List<String> lines = DebeziumJsonSerDeSchemaTest.readLines(dataFile);
 

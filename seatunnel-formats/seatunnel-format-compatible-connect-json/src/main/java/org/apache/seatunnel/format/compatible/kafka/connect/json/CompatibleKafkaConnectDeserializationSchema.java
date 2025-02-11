@@ -17,6 +17,8 @@
 
 package org.apache.seatunnel.format.compatible.kafka.connect.json;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -43,7 +45,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -77,20 +78,21 @@ public class CompatibleKafkaConnectDeserializationSchema
             @NonNull CatalogTable catalogTable,
             boolean keySchemaEnable,
             boolean valueSchemaEnable,
-            boolean failOnMissingField,
-            boolean ignoreParseErrors) {
+            DeserializationErrorHandleWay errorHandleWay) {
         this.catalogTable = catalogTable;
         this.seaTunnelRowType = catalogTable.getSeaTunnelRowType();
         this.keySchemaEnable = keySchemaEnable;
         this.valueSchemaEnable = valueSchemaEnable;
         // Runtime converter
         this.runtimeConverter =
-                new JsonToRowConverters(failOnMissingField, ignoreParseErrors)
+                new JsonToRowConverters(
+                                errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN,
+                                errorHandleWay == DeserializationErrorHandleWay.SKIP_COLUMN)
                         .createRowConverter(checkNotNull(seaTunnelRowType));
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         throw new UnsupportedOperationException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<SeaTunnelRow>) instead.");
     }

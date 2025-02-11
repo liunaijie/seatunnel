@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.format.json.debezium;
 
+import org.apache.seatunnel.api.serialization.SerializationException;
 import org.apache.seatunnel.api.serialization.SerializationSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
@@ -25,11 +26,11 @@ import org.apache.seatunnel.common.exception.CommonError;
 import org.apache.seatunnel.format.json.JsonSerializationSchema;
 
 import static org.apache.seatunnel.api.table.type.BasicType.STRING_TYPE;
-import static org.apache.seatunnel.format.json.debezium.DebeziumJsonFormatOptions.GENERATE_ROW_SIZE;
 
 public class DebeziumJsonSerializationSchema implements SerializationSchema {
     private static final long serialVersionUID = 1L;
 
+    public static final int GENERATE_ROW_SIZE = 3;
     private static final String OP_INSERT = "c"; // insert
     private static final String OP_DELETE = "d"; // delete
     public static final String FORMAT = "Debezium";
@@ -44,7 +45,7 @@ public class DebeziumJsonSerializationSchema implements SerializationSchema {
     }
 
     @Override
-    public byte[] serialize(SeaTunnelRow row) {
+    public byte[] serialize(SeaTunnelRow row) throws SerializationException {
         try {
             switch (row.getRowKind()) {
                 case INSERT:

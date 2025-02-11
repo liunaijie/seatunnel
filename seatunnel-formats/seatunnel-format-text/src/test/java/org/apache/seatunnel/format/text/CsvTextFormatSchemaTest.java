@@ -26,7 +26,7 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.utils.DateTimeUtils.Formatter;
-import org.apache.seatunnel.format.text.splitor.CsvLineSplitor;
+import org.apache.seatunnel.format.text.splitor.CsvLineSplitter;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -137,7 +137,7 @@ public class CsvTextFormatSchemaTest {
                 TextDeserializationSchema.builder()
                         .seaTunnelRowType(seaTunnelRowType)
                         .delimiter(delimiter)
-                        .textLineSplitor(new CsvLineSplitor())
+                        .textLineSplitter(new CsvLineSplitter())
                         .build();
         SeaTunnelRow seaTunnelRow = deserializationSchema.deserialize(content.getBytes());
         Assertions.assertEquals("mess,age", seaTunnelRow.getField(0));

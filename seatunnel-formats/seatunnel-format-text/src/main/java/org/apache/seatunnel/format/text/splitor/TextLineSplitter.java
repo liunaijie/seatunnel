@@ -17,6 +17,6 @@
 
 package org.apache.seatunnel.format.text.splitor;
 
-public interface TextLineSplitor {
-    String[] spliteLine(String line, String splitor);
+public interface TextLineSplitter {
+    String[] splitLine(String line, String separator);
 }

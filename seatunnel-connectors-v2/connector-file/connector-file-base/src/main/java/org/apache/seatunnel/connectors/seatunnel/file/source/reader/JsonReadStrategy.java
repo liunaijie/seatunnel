@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.file.source.reader;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -123,7 +124,7 @@ public class JsonReadStrategy extends AbstractReadStrategy {
                                     }
                                     seaTunnelRow.setTableId(tableId);
                                     output.collect(seaTunnelRow);
-                                } catch (IOException e) {
+                                } catch (DeserializationException e) {
                                     String errorMsg =
                                             String.format(
                                                     "Deserialize this jsonFile data [%s] failed, please check the origin data",

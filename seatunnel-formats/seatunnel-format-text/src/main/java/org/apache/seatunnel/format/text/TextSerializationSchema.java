@@ -144,6 +144,7 @@ public class TextSerializationSchema implements SerializationSchema {
         Object[] fields = element.getFields();
         String[] strings = new String[fields.length];
         for (int i = 0; i < fields.length; i++) {
+            // todo try catch
             strings[i] = convert(fields[i], seaTunnelRowType.getFieldType(i), 0);
         }
         return String.join(separators[0], strings).getBytes(charset);

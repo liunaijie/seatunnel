@@ -18,6 +18,7 @@
 
 package org.apache.seatunnel.format.protobuf;
 
+import org.apache.seatunnel.api.serialization.SerializationException;
 import org.apache.seatunnel.api.serialization.SerializationSchema;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
@@ -45,7 +46,7 @@ public class ProtobufSerializationSchema implements SerializationSchema {
     }
 
     @Override
-    public byte[] serialize(SeaTunnelRow element) {
+    public byte[] serialize(SeaTunnelRow element) throws SerializationException {
         return converter.convertRowToGenericRecord(element);
     }
 }

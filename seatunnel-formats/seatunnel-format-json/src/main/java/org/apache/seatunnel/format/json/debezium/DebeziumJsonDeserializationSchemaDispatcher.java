@@ -20,6 +20,7 @@ package org.apache.seatunnel.format.json.debezium;
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.seatunnel.shade.com.google.common.annotations.VisibleForTesting;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.TablePath;
@@ -31,12 +32,11 @@ import org.apache.seatunnel.common.utils.JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
 
 import static org.apache.seatunnel.format.json.debezium.DebeziumJsonDeserializationSchema.DATA_PAYLOAD;
-import static org.apache.seatunnel.format.json.debezium.DebeziumJsonDeserializationSchema.FORMAT;
+import static org.apache.seatunnel.format.json.debezium.DebeziumJsonSerializationSchema.FORMAT;
 
 public class DebeziumJsonDeserializationSchemaDispatcher
         implements DeserializationSchema<SeaTunnelRow> {
@@ -46,7 +46,7 @@ public class DebeziumJsonDeserializationSchemaDispatcher
 
     private final Map<TablePath, DebeziumJsonDeserializationSchema> tableDeserializationMap;
     private final boolean debeziumEnabledSchema;
-    private boolean ignoreParseErrors;
+    private DeserializationErrorHandleWay errorHandleWay;
 
     private static final String SOURCE = "source";
     private static final String TABLE = "table";
@@ -56,15 +56,15 @@ public class DebeziumJsonDeserializationSchemaDispatcher
 
     public DebeziumJsonDeserializationSchemaDispatcher(
             Map<TablePath, DebeziumJsonDeserializationSchema> tableDeserializationMap,
-            boolean ignoreParseErrors,
+            DeserializationErrorHandleWay errorHandleWay,
             boolean debeziumEnabledSchema) {
         this.tableDeserializationMap = tableDeserializationMap;
         this.debeziumEnabledSchema = debeziumEnabledSchema;
-        this.ignoreParseErrors = ignoreParseErrors;
+        this.errorHandleWay = errorHandleWay;
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) {
         throw new UnsupportedOperationException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<SeaTunnelRow>) instead.");
     }
@@ -98,7 +98,7 @@ public class DebeziumJsonDeserializationSchemaDispatcher
 
         } catch (Exception e) {
             // a big try catch to protect the processing.
-            if (!ignoreParseErrors) {
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
                 throw CommonError.jsonOperationError(FORMAT, new String(message), e);
             }
         }

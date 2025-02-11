@@ -15,9 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.connectors.seatunnel.kafka.config;
+package org.apache.seatunnel.format.text.splitor;
 
-public enum MessageFormatErrorHandleWay {
-    FAIL,
-    SKIP,
+import java.io.Serializable;
+
+public class DefaultTextLineSplitter implements TextLineSplitter, Serializable {
+
+    @Override
+    public String[] splitLine(String line, String separator) {
+        return line.split(separator, -1);
+    }
 }

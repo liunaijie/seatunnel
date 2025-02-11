@@ -21,6 +21,7 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
 import org.apache.seatunnel.api.configuration.util.OptionRule;
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.SeaTunnelSource;
 import org.apache.seatunnel.api.source.SourceSplit;
@@ -119,7 +120,7 @@ public class AmazonSqsSourceFactory implements TableSourceFactory {
             case CANAL_JSON:
                 deserializationSchema =
                         CanalJsonDeserializationSchema.builder(catalogTable)
-                                .setIgnoreParseErrors(true)
+                                .setErrorHandleWay(DeserializationErrorHandleWay.SKIP_ROW)
                                 .build();
                 break;
             case DEBEZIUM_JSON:
@@ -128,7 +129,10 @@ public class AmazonSqsSourceFactory implements TableSourceFactory {
                     includeSchema = config.getBoolean(DEBEZIUM_RECORD_INCLUDE_SCHEMA.key());
                 }
                 deserializationSchema =
-                        new DebeziumJsonDeserializationSchema(catalogTable, true, includeSchema);
+                        new DebeziumJsonDeserializationSchema(
+                                catalogTable,
+                                DeserializationErrorHandleWay.SKIP_ROW,
+                                includeSchema);
                 break;
             default:
                 throw new SeaTunnelJsonFormatException(

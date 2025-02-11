@@ -18,6 +18,7 @@
 package org.apache.seatunnel.connectors.seatunnel.kafka.source;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.table.catalog.CatalogOptions;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -33,7 +34,6 @@ import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.exception.CommonErrorCodeDeprecated;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormat;
-import org.apache.seatunnel.connectors.seatunnel.kafka.config.MessageFormatErrorHandleWay;
 import org.apache.seatunnel.connectors.seatunnel.kafka.config.StartMode;
 import org.apache.seatunnel.format.avro.AvroDeserializationSchema;
 import org.apache.seatunnel.format.compatible.kafka.connect.json.CompatibleKafkaConnectDeserializationSchema;
@@ -53,7 +53,9 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.common.TopicPartition;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -83,6 +85,7 @@ import static org.apache.seatunnel.connectors.seatunnel.kafka.config.KafkaSource
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.KafkaSourceOptions.START_MODE_TIMESTAMP;
 import static org.apache.seatunnel.connectors.seatunnel.kafka.config.KafkaSourceOptions.TOPIC;
 
+@Slf4j
 public class KafkaSourceConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -92,7 +95,7 @@ public class KafkaSourceConfig implements Serializable {
     @Getter private final boolean commitOnCheckpoint;
     @Getter private final Properties properties;
     @Getter private final long discoveryIntervalMillis;
-    @Getter private final MessageFormatErrorHandleWay messageFormatErrorHandleWay;
+    @Getter private final DeserializationErrorHandleWay messageFormatErrorHandleWay;
     @Getter private final String consumerGroup;
     @Getter private final long pollTimeout;
 
@@ -245,7 +248,8 @@ public class KafkaSourceConfig implements Serializable {
                 null);
     }
 
-    private DeserializationSchema<SeaTunnelRow> createDeserializationSchema(
+    @VisibleForTesting
+    DeserializationSchema<SeaTunnelRow> createDeserializationSchema(
             CatalogTable catalogTable, ReadonlyConfig readonlyConfig) {
         SeaTunnelRowType seaTunnelRowType = catalogTable.getSeaTunnelRowType();
         MessageFormat format = readonlyConfig.get(FORMAT);
@@ -257,27 +261,28 @@ public class KafkaSourceConfig implements Serializable {
                     .setCatalogTable(catalogTable)
                     .build();
         }
-
+        log.warn("Will [{}] when record deserialize failed!", messageFormatErrorHandleWay);
         switch (format) {
             case JSON:
-                return new JsonDeserializationSchema(catalogTable, false, false);
+                return new JsonDeserializationSchema(catalogTable, messageFormatErrorHandleWay);
             case TEXT:
                 String delimiter = readonlyConfig.get(FIELD_DELIMITER);
                 return TextDeserializationSchema.builder()
                         .seaTunnelRowType(seaTunnelRowType)
+                        .setErrorHandleWay(messageFormatErrorHandleWay)
                         .delimiter(delimiter)
                         .build();
             case CANAL_JSON:
                 return CanalJsonDeserializationSchema.builder(catalogTable)
-                        .setIgnoreParseErrors(true)
+                        .setErrorHandleWay(messageFormatErrorHandleWay)
                         .build();
             case OGG_JSON:
                 return OggJsonDeserializationSchema.builder(catalogTable)
-                        .setIgnoreParseErrors(true)
+                        .setErrorHandleWay(messageFormatErrorHandleWay)
                         .build();
             case MAXWELL_JSON:
                 return MaxWellJsonDeserializationSchema.builder(catalogTable)
-                        .setIgnoreParseErrors(true)
+                        .setErrorHandleWay(messageFormatErrorHandleWay)
                         .build();
 
             case COMPATIBLE_KAFKA_CONNECT_JSON:
@@ -288,7 +293,10 @@ public class KafkaSourceConfig implements Serializable {
                         readonlyConfig.get(
                                 KafkaConnectJsonFormatOptions.VALUE_CONVERTER_SCHEMA_ENABLED);
                 return new CompatibleKafkaConnectDeserializationSchema(
-                        catalogTable, keySchemaEnable, valueSchemaEnable, false, false);
+                        catalogTable,
+                        keySchemaEnable,
+                        valueSchemaEnable,
+                        messageFormatErrorHandleWay);
             case DEBEZIUM_JSON:
                 boolean includeSchema = readonlyConfig.get(DEBEZIUM_RECORD_INCLUDE_SCHEMA);
                 TableSchemaOptions.TableIdentifier tableFilter =
@@ -309,16 +317,19 @@ public class KafkaSourceConfig implements Serializable {
                             Collections.singletonMap(
                                     tablePath,
                                     new DebeziumJsonDeserializationSchema(
-                                            catalogTable, true, includeSchema));
+                                            catalogTable,
+                                            messageFormatErrorHandleWay,
+                                            includeSchema));
                     return new DebeziumJsonDeserializationSchemaDispatcher(
-                            tableDeserializationMap, true, includeSchema);
+                            tableDeserializationMap, messageFormatErrorHandleWay, includeSchema);
                 } else {
-                    return new DebeziumJsonDeserializationSchema(catalogTable, true, includeSchema);
+                    return new DebeziumJsonDeserializationSchema(
+                            catalogTable, messageFormatErrorHandleWay, includeSchema);
                 }
             case AVRO:
                 return new AvroDeserializationSchema(catalogTable);
             case PROTOBUF:
-                return new ProtobufDeserializationSchema(catalogTable);
+                return new ProtobufDeserializationSchema(catalogTable, messageFormatErrorHandleWay);
             default:
                 throw new SeaTunnelJsonFormatException(
                         CommonErrorCodeDeprecated.UNSUPPORTED_DATA_TYPE,

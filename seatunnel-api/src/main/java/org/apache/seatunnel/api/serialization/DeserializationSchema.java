@@ -20,7 +20,6 @@ package org.apache.seatunnel.api.serialization;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 public interface DeserializationSchema<T> extends Serializable {
@@ -32,9 +31,9 @@ public interface DeserializationSchema<T> extends Serializable {
      * @return The deserialized message as an SeaTunnel Row (null if the message cannot be
      *     deserialized).
      */
-    T deserialize(byte[] message) throws IOException;
+    T deserialize(byte[] message) throws DeserializationException;
 
-    default void deserialize(byte[] message, Collector<T> out) throws IOException {
+    default void deserialize(byte[] message, Collector<T> out) throws DeserializationException {
         T deserialize = deserialize(message);
         if (deserialize != null) {
             out.collect(deserialize);

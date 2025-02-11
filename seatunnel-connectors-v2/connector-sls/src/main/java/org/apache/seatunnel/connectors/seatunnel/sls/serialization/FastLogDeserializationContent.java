@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.sls.serialization;
 
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -55,7 +56,7 @@ public class FastLogDeserializationContent
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] bytes) throws IOException {
+    public SeaTunnelRow deserialize(byte[] bytes) throws DeserializationException {
         return null;
     }
 

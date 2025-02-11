@@ -23,6 +23,8 @@ import org.apache.seatunnel.shade.com.typesafe.config.Config;
 import org.apache.seatunnel.shade.com.typesafe.config.ConfigFactory;
 
 import org.apache.seatunnel.api.configuration.ReadonlyConfig;
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.CatalogTableUtil;
 import org.apache.seatunnel.api.table.catalog.PhysicalColumn;
@@ -460,14 +462,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
                 new AvroDeserializationSchema(catalogTable);
         List<SeaTunnelRow> kafkaSTRow =
                 getKafkaSTRow(
-                        "test_avro_topic_fake_source",
-                        value -> {
-                            try {
-                                return avroDeserializationSchema.deserialize(value);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                        "test_avro_topic_fake_source", avroDeserializationSchema::deserialize);
         Assertions.assertEquals(90, kafkaSTRow.size());
         kafkaSTRow.forEach(
                 row -> {
@@ -513,15 +508,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
         AvroDeserializationSchema avroDeserializationSchema =
                 new AvroDeserializationSchema(catalogTable);
         List<SeaTunnelRow> kafkaSTRow =
-                getKafkaSTRow(
-                        "test_avro_topic",
-                        value -> {
-                            try {
-                                return avroDeserializationSchema.deserialize(value);
-                            } catch (IOException e) {
-                                throw new RuntimeException(e);
-                            }
-                        });
+                getKafkaSTRow("test_avro_topic", avroDeserializationSchema::deserialize);
         Assertions.assertEquals(100, kafkaSTRow.size());
         kafkaSTRow.forEach(
                 row -> {
@@ -635,7 +622,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
 
         // Initialize the Protobuf deserialization schema
         ProtobufDeserializationSchema deserializationSchema =
-                new ProtobufDeserializationSchema(catalogTable);
+                new ProtobufDeserializationSchema(catalogTable, DeserializationErrorHandleWay.FAIL);
 
         // Retrieve and verify Kafka rows
         List<SeaTunnelRow> kafkaRows =
@@ -644,7 +631,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
                         value -> {
                             try {
                                 return deserializationSchema.deserialize(value);
-                            } catch (IOException e) {
+                            } catch (DeserializationException e) {
                                 throw new RuntimeException(e);
                             }
                         });
@@ -715,7 +702,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
 
         // Initialize the Protobuf deserialization schema
         ProtobufDeserializationSchema deserializationSchema =
-                new ProtobufDeserializationSchema(catalogTable);
+                new ProtobufDeserializationSchema(catalogTable, DeserializationErrorHandleWay.FAIL);
 
         DefaultSeaTunnelRowSerializer serializer =
                 getDefaultSeaTunnelRowSerializer(
@@ -734,7 +721,7 @@ public class KafkaIT extends TestSuiteBase implements TestResource {
                         value -> {
                             try {
                                 return deserializationSchema.deserialize(value);
-                            } catch (IOException e) {
+                            } catch (DeserializationException e) {
                                 throw new RuntimeException("Error deserializing Kafka message", e);
                             }
                         });

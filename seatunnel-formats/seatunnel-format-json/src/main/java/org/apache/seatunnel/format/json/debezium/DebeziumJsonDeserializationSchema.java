@@ -19,6 +19,8 @@ package org.apache.seatunnel.format.json.debezium;
 
 import org.apache.seatunnel.shade.com.fasterxml.jackson.databind.JsonNode;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -27,8 +29,8 @@ import org.apache.seatunnel.api.table.type.RowKind;
 import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
-import org.apache.seatunnel.common.exception.CommonError;
 import org.apache.seatunnel.format.json.JsonDeserializationSchema;
+import org.apache.seatunnel.format.json.exception.JsonErrorCode;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -52,37 +54,37 @@ public class DebeziumJsonDeserializationSchema implements DeserializationSchema<
                     + "if you are using Debezium Postgres Connector, "
                     + "please check the Postgres table has been set REPLICA IDENTITY to FULL level.";
 
-    public static final String FORMAT = "Debezium";
-
     private final SeaTunnelRowType rowType;
 
     private final JsonDeserializationSchema jsonDeserializer;
 
     private final DebeziumRowConverter debeziumRowConverter;
 
-    private final boolean ignoreParseErrors;
+    private final DeserializationErrorHandleWay errorHandleWay;
 
     private final boolean debeziumEnabledSchema;
 
     private final TablePath tablePath;
 
-    public DebeziumJsonDeserializationSchema(CatalogTable catalogTable, boolean ignoreParseErrors) {
-        this(catalogTable, ignoreParseErrors, false);
+    public DebeziumJsonDeserializationSchema(
+            CatalogTable catalogTable, DeserializationErrorHandleWay errorHandleWay) {
+        this(catalogTable, errorHandleWay, false);
     }
 
     public DebeziumJsonDeserializationSchema(
-            CatalogTable catalogTable, boolean ignoreParseErrors, boolean debeziumEnabledSchema) {
+            CatalogTable catalogTable,
+            DeserializationErrorHandleWay errorHandleWay,
+            boolean debeziumEnabledSchema) {
         this.rowType = catalogTable.getSeaTunnelRowType();
-        this.ignoreParseErrors = ignoreParseErrors;
-        this.jsonDeserializer =
-                new JsonDeserializationSchema(catalogTable, false, ignoreParseErrors);
+        this.errorHandleWay = errorHandleWay;
+        this.jsonDeserializer = new JsonDeserializationSchema(catalogTable, errorHandleWay);
         this.debeziumRowConverter = new DebeziumRowConverter(rowType);
         this.debeziumEnabledSchema = debeziumEnabledSchema;
         this.tablePath = Optional.of(catalogTable).map(CatalogTable::getTablePath).orElse(null);
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         throw new UnsupportedOperationException(
                 "Please invoke DeserializationSchema#deserialize(byte[], Collector<SeaTunnelRow>) instead.");
     }
@@ -103,9 +105,9 @@ public class DebeziumJsonDeserializationSchema implements DeserializationSchema<
             JsonNode payload = getPayload(jsonDeserializer.deserializeToJsonNode(message));
             parsePayload(out, tablePath, payload);
         } catch (Exception e) {
-            // a big try catch to protect the processing.
-            if (!ignoreParseErrors) {
-                throw CommonError.jsonOperationError(FORMAT, new String(message), e);
+            if (errorHandleWay == DeserializationErrorHandleWay.FAIL) {
+                throw new DeserializationException(
+                        JsonErrorCode.DEBEZIUM_DESERIALIZE_ERROR, e.getMessage());
             }
         }
     }

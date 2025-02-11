@@ -16,6 +16,7 @@
  */
 package org.apache.seatunnel.format.protobuf;
 
+import org.apache.seatunnel.api.serialization.DeserializationErrorHandleWay;
 import org.apache.seatunnel.api.table.type.ArrayType;
 import org.apache.seatunnel.api.table.type.BasicType;
 import org.apache.seatunnel.api.table.type.MapType;
@@ -145,7 +146,8 @@ class ProtobufConverterTest {
         byte[] protobufMessage = rowToProtobufConverter.convertRowToGenericRecord(originalRow);
 
         ProtobufToRowConverter protobufToRowConverter =
-                new ProtobufToRowConverter(protoContent, messageName);
+                new ProtobufToRowConverter(
+                        protoContent, messageName, DeserializationErrorHandleWay.FAIL);
         DynamicMessage dynamicMessage = DynamicMessage.parseFrom(descriptor, protobufMessage);
         SeaTunnelRow convertedRow =
                 protobufToRowConverter.converter(descriptor, dynamicMessage, rowType);

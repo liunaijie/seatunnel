@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.format.csv;
 
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
 import org.apache.seatunnel.api.table.catalog.TablePath;
@@ -40,7 +41,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import lombok.NonNull;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -170,7 +170,7 @@ public class CsvDeserializationSchema implements DeserializationSchema<SeaTunnel
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] message) throws IOException {
+    public SeaTunnelRow deserialize(byte[] message) throws DeserializationException {
         if (message == null || message.length == 0) {
             return null;
         }

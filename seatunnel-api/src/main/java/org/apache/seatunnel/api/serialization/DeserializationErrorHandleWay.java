@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.seatunnel.format.text.splitor;
+package org.apache.seatunnel.api.serialization;
 
-import java.io.Serializable;
-
-public class DefaultTextLineSplitor implements TextLineSplitor, Serializable {
-
-    @Override
-    public String[] spliteLine(String line, String seperator) {
-        return line.split(seperator, -1);
-    }
+public enum DeserializationErrorHandleWay {
+    FAIL,
+    // use SKIP_ROW instead
+    @Deprecated
+    SKIP,
+    SKIP_ROW,
+    SKIP_COLUMN
 }

@@ -17,6 +17,7 @@
 
 package org.apache.seatunnel.connectors.seatunnel.sls.serialization;
 
+import org.apache.seatunnel.api.serialization.DeserializationException;
 import org.apache.seatunnel.api.serialization.DeserializationSchema;
 import org.apache.seatunnel.api.source.Collector;
 import org.apache.seatunnel.api.table.catalog.CatalogTable;
@@ -25,7 +26,6 @@ import org.apache.seatunnel.api.table.type.SeaTunnelDataType;
 import org.apache.seatunnel.api.table.type.SeaTunnelRow;
 import org.apache.seatunnel.api.table.type.SeaTunnelRowType;
 import org.apache.seatunnel.common.exception.CommonErrorCodeDeprecated;
-import org.apache.seatunnel.format.text.exception.SeaTunnelTextFormatException;
 
 import com.aliyun.openservices.log.common.FastLog;
 import com.aliyun.openservices.log.common.FastLogContent;
@@ -61,7 +61,7 @@ public class FastLogDeserializationSchema
     }
 
     @Override
-    public SeaTunnelRow deserialize(byte[] bytes) throws IOException {
+    public SeaTunnelRow deserialize(byte[] bytes) throws DeserializationException {
         return null;
     }
 
@@ -99,7 +99,7 @@ public class FastLogDeserializationSchema
     }
 
     private Object convert(SeaTunnelDataType<?> fieldType, String field)
-            throws SeaTunnelTextFormatException {
+            throws DeserializationException {
         switch (fieldType.getSqlType()) {
             case STRING:
                 return field;
@@ -124,7 +124,7 @@ public class FastLogDeserializationSchema
             case BYTES:
                 return field.getBytes(StandardCharsets.UTF_8);
             default:
-                throw new SeaTunnelTextFormatException(
+                throw new DeserializationException(
                         CommonErrorCodeDeprecated.UNSUPPORTED_DATA_TYPE,
                         String.format(
                                 "SeaTunnel not support this data type [%s]",
